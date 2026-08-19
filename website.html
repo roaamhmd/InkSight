@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>InkSight — AI Handwriting Evaluator</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col items-center p-6">
   <header class="text-center mb-6">
@@ -20,7 +21,7 @@
       <button id="clearBtn" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-sm transition">Clear Canvas</button>
     </div>
 
-    <canvas id="paintCanvas" class="w-full h-64 bg-white rounded-lg cursor-crosshair touch-none mb-4"></canvas>
+    <canvas id="paintCanvas" class="w-full h-64 rounded-lg cursor-crosshair touch-none mb-4"></canvas>
 
     <button id="evalBtn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 font-semibold rounded-lg shadow-md transition">
       Evaluate Handwriting
@@ -51,19 +52,24 @@
     const ctx = canvas.getContext('2d');
     let drawing = false;
 
-    // Set canvas internal pixel dimensions
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    function initCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    }
+
+    initCanvas();
 
     function startDraw(e) { drawing = true; draw(e); }
     function stopDraw() { drawing = false; ctx.beginPath(); }
     function draw(e) {
       if (!drawing) return;
       const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX || e.touches[0].clientX) - rect.left;
-      const y = (e.clientY || e.touches[0].clientY) - rect.top;
+      const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+      const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
 
       ctx.lineWidth = document.getElementById('brushSize').value;
       ctx.strokeStyle = '#000000';
@@ -81,7 +87,7 @@
     canvas.addEventListener('touchmove', draw);
 
     document.getElementById('clearBtn').addEventListener('click', () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      initCanvas();
       document.getElementById('results').classList.add('hidden');
     });
 
@@ -95,6 +101,12 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: imageData })
         });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || 'Backend process failed');
+        }
+
         const data = await res.json();
 
         document.getElementById('textOutput').innerText = data.text;
@@ -102,7 +114,7 @@
         document.getElementById('feedbackOutput').innerText = data.feedback;
         document.getElementById('results').classList.remove('hidden');
       } catch (err) {
-        alert('Make sure your Python backend is running at http://localhost:8000');
+        alert(`Error: ${err.message}\nEnsure backend is running at http://localhost:8000`);
       } finally {
         document.getElementById('evalBtn').innerText = 'Evaluate Handwriting';
       }
